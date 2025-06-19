@@ -22,7 +22,7 @@ use crate::{
 	AccountLookupOverride, BalanceOf, Call, CollatorPoolInfo, CollatorsPool, Config, CurrentRound,
 	ForceRotation, MinOrbiterDeposit, OrbiterPerRound, Pallet,
 };
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, v2::*};
 use frame_support::traits::{Currency, Get, OnInitialize, ReservableCurrency};
 use frame_system::RawOrigin;
 use sp_runtime::traits::{Saturating, StaticLookup};
@@ -62,8 +62,12 @@ fn create_orbiter<T: Config>(string: &'static str, n: u32, balance: u32) -> T::A
 	orbiter_account
 }
 
-benchmarks! {
-	collator_add_orbiter {
+#[benchmarks]
+mod benchmarks {
+	use super::*;
+
+	#[benchmark]
+	fn collator_add_orbiter() -> Result<(), BenchmarkError> {
 		init::<T>();
 		let collator_account: T::AccountId = create_collator::<T>("COLLATOR", USER_SEED, 10_000);
 
@@ -82,11 +86,14 @@ benchmarks! {
 		let orbiter_account: T::AccountId = create_orbiter::<T>("ORBITER", USER_SEED, 20_000);
 		let orbiter_lookup: <T::Lookup as StaticLookup>::Source =
 			T::Lookup::unlookup(orbiter_account.clone());
-	}: _(RawOrigin::Signed(collator_account), orbiter_lookup)
-	verify {
 
+		#[extrinsic_call]
+		_(RawOrigin::Signed(collator_account), orbiter_lookup);
+
+		Ok(())
 	}
-	collator_remove_orbiter {
+	#[benchmark]
+	fn collator_remove_orbiter() -> Result<(), BenchmarkError> {
 		init::<T>();
 		let collator_account: T::AccountId = create_collator::<T>("COLLATOR", USER_SEED, 10_000);
 
@@ -105,11 +112,13 @@ benchmarks! {
 			).expect("fail to add orbiter");
 		}
 
-	}: _(RawOrigin::Signed(collator_account), orbiter_lookup)
-	verify {
+		#[extrinsic_call]
+		_(RawOrigin::Signed(collator_account), orbiter_lookup);
 
+		Ok(())
 	}
-	orbiter_leave_collator_pool {
+	#[benchmark]
+	fn orbiter_leave_collator_pool() -> Result<(), BenchmarkError> {
 		init::<T>();
 		let collator_account: T::AccountId = create_collator::<T>("COLLATOR", USER_SEED, 10_000);
 
@@ -129,42 +138,51 @@ benchmarks! {
 
 		let collator_lookup: <T::Lookup as StaticLookup>::Source =
 			T::Lookup::unlookup(collator_account.clone());
-	}: _(RawOrigin::Signed(orbiter_account), collator_lookup)
-	verify {
 
+		#[extrinsic_call]
+		_(RawOrigin::Signed(orbiter_account), collator_lookup);
+
+		Ok(())
 	}
-	orbiter_register {
+	#[benchmark]
+	fn orbiter_register() -> Result<(), BenchmarkError> {
 		init::<T>();
 		let orbiter_account: T::AccountId = create_funded_user::<T>("ORBITER", USER_SEED, 20_000);
-	}: _(RawOrigin::Signed(orbiter_account.clone()))
-	verify {
-		assert_eq!(T::Currency::reserved_balance(&orbiter_account), MIN_ORBITER_DEPOSIT.into());
-	}
-	orbiter_unregister {
-		// We make it dependent on the number of collator in the orbiter program
-		let n in 0..100;
 
+		#[extrinsic_call]
+		_(RawOrigin::Signed(orbiter_account.clone()));
+
+		assert_eq!(T::Currency::reserved_balance(&orbiter_account), MIN_ORBITER_DEPOSIT.into());
+		Ok(())
+	}
+	#[benchmark]
+	fn orbiter_unregister(n: Linear<0, 100>) -> Result<(), BenchmarkError> {
 		init::<T>();
 
 		for i in 0..n {
 			let _: T::AccountId = create_collator::<T>("COLLATOR", USER_SEED + i, 10_000);
 		}
 		let orbiter_account: T::AccountId = create_orbiter::<T>("ORBITER", USER_SEED, 20_000);
-	}: _(RawOrigin::Signed(orbiter_account), n)
-	verify {
 
+		#[extrinsic_call]
+		_(RawOrigin::Signed(orbiter_account), n);
+
+		Ok(())
 	}
-	add_collator {
+	#[benchmark]
+	fn add_collator() -> Result<(), BenchmarkError> {
 		init::<T>();
 		let collator_account: T::AccountId = create_funded_user::<T>("COLLATOR", USER_SEED, 10_000);
 		let collator_lookup: <T::Lookup as StaticLookup>::Source =
 			T::Lookup::unlookup(collator_account.clone());
 
-	}: _(RawOrigin::Root, collator_lookup.clone())
-	verify {
+		#[extrinsic_call]
+		_(RawOrigin::Root, collator_lookup.clone());
 
+		Ok(())
 	}
-	remove_collator {
+	#[benchmark]
+	fn remove_collator() -> Result<(), BenchmarkError> {
 		init::<T>();
 		let collator_account: T::AccountId = create_collator::<T>("COLLATOR", USER_SEED, 10_000);
 
@@ -181,15 +199,15 @@ benchmarks! {
 
 		let collator_lookup: <T::Lookup as StaticLookup>::Source =
 			T::Lookup::unlookup(collator_account.clone());
-	}: _(RawOrigin::Root, collator_lookup.clone())
-	verify {
 
+		#[extrinsic_call]
+		_(RawOrigin::Root, collator_lookup.clone());
+
+		Ok(())
 	}
 
-	on_initialize {
-		// We make it dependent on the number of collator in the orbiter program
-		let x in 0..100;
-
+	#[benchmark]
+	fn on_initialize(x: Linear<0, 100>) -> Result<(), BenchmarkError> {
 		init::<T>();
 
 		let round = CurrentRound::<T>::get()
@@ -205,16 +223,22 @@ benchmarks! {
 			// It does not rellay matter that the orbiter is the collator for the sake of the benchmark
 			<OrbiterPerRound<T>>::insert(round_to_prune, collator_account.clone(), collator_account);
 		};
-	}: { Pallet::<T>::on_initialize(<frame_system::Pallet<T>>::block_number()); }
-	verify {
+
+		#[block]
+		{
+			Pallet::<T>::on_initialize(<frame_system::Pallet<T>>::block_number());
+		}
+
 		let collator_account: T::AccountId = create_funded_user::<T>("COLLATOR", USER_SEED, 10_000);
 		assert!(
 			<OrbiterPerRound<T>>::get(round_to_prune, collator_account).is_none(), "Should have been removed"
 		);
 
+		Ok(())
 	}
 
-	distribute_rewards {
+	#[benchmark]
+	fn distribute_rewards() -> Result<(), BenchmarkError> {
 		init::<T>();
 
 		let round_to_pay: T::RoundIndex = 1u32.into();
@@ -224,8 +248,11 @@ benchmarks! {
 		// Worst case, orbiter exists
 		<OrbiterPerRound<T>>::insert(round_to_pay, &collator, &orbiter);
 
-	}: { Pallet::<T>::distribute_rewards(round_to_pay, collator.clone(), 1_000u32.into()); }
-	verify {
+		#[block]
+		{
+			Pallet::<T>::distribute_rewards(round_to_pay, collator.clone(), 1_000u32.into());
+		}
+
 		assert_eq!(
 			T::Currency::total_balance(&orbiter), 11_000u32.into()
 		);
@@ -233,9 +260,11 @@ benchmarks! {
 			T::Currency::total_balance(&collator), 10_000u32.into()
 		);
 
+		Ok(())
 	}
 
-	on_new_round {
+	#[benchmark]
+	fn on_new_round() -> Result<(), BenchmarkError> {
 		init::<T>();
 
 		// We want to simulate worst case:
@@ -268,8 +297,11 @@ benchmarks! {
 
 		<CollatorsPool<T>>::insert(&collator, &collator_pool_info);
 
-	}: { Pallet::<T>::on_new_round(round_to_rotate); }
-	verify {
+		#[block]
+		{
+			Pallet::<T>::on_new_round(round_to_rotate);
+		}
+
 		assert_eq!(
 			AccountLookupOverride::<T>::get(&collator), Some(None)
 		);
@@ -277,7 +309,14 @@ benchmarks! {
 			AccountLookupOverride::<T>::get(&new_orbiter).expect("must exist"), Some(collator)
 		);
 
+		Ok(())
 	}
+
+	impl_benchmark_test_suite!(
+		Pallet,
+		crate::benchmarks::tests::new_test_ext(),
+		crate::mock::Test
+	);
 }
 
 #[cfg(test)]
@@ -373,8 +412,3 @@ mod tests {
 	}
 }
 
-impl_benchmark_test_suite!(
-	Pallet,
-	crate::benchmarks::tests::new_test_ext(),
-	crate::mock::Test
-);
