@@ -91,7 +91,7 @@ mod benchmarks {
 
 	impl_benchmark_test_suite!(
 		Pallet,
-		crate::mock::new_test_ext(),
+		crate::mock::ExtBuilder::default().build(),
 		crate::mock::Test
 	);
 }
