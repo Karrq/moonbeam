@@ -510,18 +510,13 @@ mod benchmarks {
 		Ok(())
 	}
 
-	execute_leave_candidates_ideal {
+	#[benchmark]
+	fn execute_leave_candidates_ideal(
 		// x is total number of delegations for the candidate
-		let x in 2..(
-			<<T as Config>::MaxTopDelegationsPerCandidate as Get<u32>>::get()
-			+ <<T as Config>::MaxBottomDelegationsPerCandidate as Get<u32>>::get()
-		);
+		x: Linear<2, { <<T as Config>::MaxTopDelegationsPerCandidate as Get<u32>>::get() + <<T as Config>::MaxBottomDelegationsPerCandidate as Get<u32>>::get() }>,
 		// y is the total number of auto-compounding delegations for the candidate
-		let y in 2..(
-			<<T as Config>::MaxTopDelegationsPerCandidate as Get<u32>>::get()
-			+ <<T as Config>::MaxBottomDelegationsPerCandidate as Get<u32>>::get()
-		);
-
+		y: Linear<2, { <<T as Config>::MaxTopDelegationsPerCandidate as Get<u32>>::get() + <<T as Config>::MaxBottomDelegationsPerCandidate as Get<u32>>::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let candidate: T::AccountId = create_funded_collator::<T>(
 			"unique_caller",
 			USER_SEED - 100,
@@ -585,19 +580,24 @@ mod benchmarks {
 			3u32
 		)?;
 		roll_to_and_author::<T>(T::LeaveCandidatesDelay::get(), candidate.clone());
-	}: {
-		<Pallet<T>>::execute_leave_candidates_inner(candidate.clone())?;
-	}
-	verify {
+
+		#[block]
+		{
+			<Pallet<T>>::execute_leave_candidates_inner(candidate.clone())?;
+		}
+
 		assert!(Pallet::<T>::candidate_info(&candidate).is_none());
 		assert!(Pallet::<T>::candidate_info(&second_candidate).is_some());
 		for delegator in delegators {
 			assert!(Pallet::<T>::is_delegator(&delegator));
 		}
+		Ok(())
 	}
 
-	cancel_leave_candidates {
-		let x in 3..T::MaxCandidates::get();
+	#[benchmark]
+	fn cancel_leave_candidates(
+		x: Linear<3, { T::MaxCandidates::get() }>,
+	) -> Result<(), BenchmarkError> {
 		// Worst Case Complexity is removal from an ordered list so \exists full list before call
 		let mut candidate_count = 1u32;
 		for i in 2..x {
@@ -624,14 +624,18 @@ mod benchmarks {
 			candidate_count
 		)?;
 		candidate_count -= 1u32;
-	}: _(RawOrigin::Signed(caller.clone()), candidate_count)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), candidate_count);
+
 		assert!(Pallet::<T>::candidate_info(&caller).expect("must exist").is_active());
+		Ok(())
 	}
 
-	go_offline {
-		let x in 1..T::MaxCandidates::get();
-
+	#[benchmark]
+	fn go_offline(
+		x: Linear<1, { T::MaxCandidates::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let mut candidate_count = 1u32;
 		for i in 2..x {
 			let seed = USER_SEED - i;
@@ -652,16 +656,20 @@ mod benchmarks {
 			true,
 			candidate_count
 		)?;
-	}: {
-		<Pallet<T>>::go_offline(RawOrigin::Signed(caller.clone()).into())?;
-	}
-	verify {
+
+		#[block]
+		{
+			<Pallet<T>>::go_offline(RawOrigin::Signed(caller.clone()).into())?;
+		}
+
 		assert!(!Pallet::<T>::candidate_info(&caller).expect("must exist").is_active());
+		Ok(())
 	}
 
-	go_online {
-		let x in 1..T::MaxCandidates::get();
-
+	#[benchmark]
+	fn go_online(
+		x: Linear<1, { T::MaxCandidates::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let mut candidate_count = 1u32;
 		for i in 2..x {
 			let seed = USER_SEED - i;
@@ -683,16 +691,20 @@ mod benchmarks {
 			candidate_count
 		)?;
 		<Pallet<T>>::go_offline(RawOrigin::Signed(caller.clone()).into())?;
-	}:  {
-		<Pallet<T>>::go_online(RawOrigin::Signed(caller.clone()).into())?;
-	}
-	verify {
+
+		#[block]
+		{
+			<Pallet<T>>::go_online(RawOrigin::Signed(caller.clone()).into())?;
+		}
+
 		assert!(Pallet::<T>::candidate_info(&caller).expect("must exist").is_active());
+		Ok(())
 	}
 
-	candidate_bond_more {
-		let x in 1..T::MaxCandidates::get();
-
+	#[benchmark]
+	fn candidate_bond_more(
+		x: Linear<1, { T::MaxCandidates::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let more = min_candidate_stk::<T>();
 
 		let mut candidate_count = 1u32;
@@ -715,18 +727,22 @@ mod benchmarks {
 			true,
 			candidate_count,
 		)?;
-	}: {
-		<Pallet<T>>::candidate_bond_more(RawOrigin::Signed(caller.clone()).into(), more)?;
-	}
-	verify {
+
+		#[block]
+		{
+			<Pallet<T>>::candidate_bond_more(RawOrigin::Signed(caller.clone()).into(), more)?;
+		}
+
 		let expected_bond = more * 2u32.into();
 		assert_eq!(
 			Pallet::<T>::candidate_info(&caller).expect("candidate was created, qed").bond,
 			expected_bond,
 		);
+		Ok(())
 	}
 
-	schedule_candidate_bond_less {
+	#[benchmark]
+	fn schedule_candidate_bond_less() -> Result<(), BenchmarkError> {
 		let min_candidate_stk = min_candidate_stk::<T>();
 		let caller: T::AccountId = create_funded_collator::<T>(
 			"collator",
@@ -735,8 +751,10 @@ mod benchmarks {
 			false,
 			1u32,
 		)?;
-	}: _(RawOrigin::Signed(caller.clone()), min_candidate_stk)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), min_candidate_stk);
+
 		let state = Pallet::<T>::candidate_info(&caller).expect("request bonded less so exists");
 		assert_eq!(
 			state.request,
@@ -745,11 +763,13 @@ mod benchmarks {
 				when_executable: T::CandidateBondLessDelay::get() + 1,
 			})
 		);
+		Ok(())
 	}
 
-	execute_candidate_bond_less {
-		let x in 1..T::MaxCandidates::get();
-
+	#[benchmark]
+	fn execute_candidate_bond_less(
+		x: Linear<1, { T::MaxCandidates::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let min_candidate_stk = min_candidate_stk::<T>();
 
 		let mut candidate_count = 1u32;
@@ -778,21 +798,26 @@ mod benchmarks {
 			min_candidate_stk
 		)?;
 		roll_to_and_author::<T>(T::CandidateBondLessDelay::get(), caller.clone());
-	}: {
-		Pallet::<T>::execute_candidate_bond_less(
-			RawOrigin::Signed(caller.clone()).into(),
-			caller.clone(),
-		)?;
-	} verify {
+
+		#[block]
+		{
+			Pallet::<T>::execute_candidate_bond_less(
+				RawOrigin::Signed(caller.clone()).into(),
+				caller.clone(),
+			)?;
+		}
+
 		assert_eq!(
 			Pallet::<T>::candidate_info(&caller).expect("candidate was created, qed").bond,
 			min_candidate_stk,
 		);
+		Ok(())
 	}
 
-	set_candidate_bond_to_zero {
-		let x in 1..T::MaxCandidates::get();
-
+	#[benchmark]
+	fn set_candidate_bond_to_zero(
+		x: Linear<1, { T::MaxCandidates::get() }>,
+	) -> Result<(), BenchmarkError> {
 		let min_candidate_stk = min_candidate_stk::<T>();
 
 		let mut candidate_count = 1u32;
@@ -817,13 +842,17 @@ mod benchmarks {
 		)?;
 
 		roll_to_and_author::<T>(2, caller.clone());
-	}: {
-		Pallet::<T>::set_candidate_bond_to_zero(&caller);
-	} verify {
+
+		#[block]
+		{
+			Pallet::<T>::set_candidate_bond_to_zero(&caller);
+		}
+
 		assert!(
 			Pallet::<T>::candidate_info(&caller).expect("candidate was created, qed").bond.is_zero(),
 			"bond should be zero"
 		);
+		Ok(())
 	}
 
 	#[benchmark]
@@ -854,13 +883,11 @@ mod benchmarks {
 		Ok(())
 	}
 
-	schedule_revoke_delegation {
+	#[benchmark]
+	fn schedule_revoke_delegation(
 		// x controls the number of other scheduled requests
-		let x in 0..(
-			T::MaxTopDelegationsPerCandidate::get()
-			+ T::MaxBottomDelegationsPerCandidate::get() - 1
-		);
-
+		x: Linear<0, { T::MaxTopDelegationsPerCandidate::get() + T::MaxBottomDelegationsPerCandidate::get() - 1 }>,
+	) -> Result<(), BenchmarkError> {
 		let num_top = x.min(T::MaxTopDelegationsPerCandidate::get() - 1);
 		let num_bottom = x.saturating_sub(num_top).min(T::MaxBottomDelegationsPerCandidate::get());
 
@@ -945,13 +972,14 @@ mod benchmarks {
 			num_bottom,
 		);
 
-	}: {
-		Pallet::<T>::schedule_revoke_delegation(
-			RawOrigin::Signed(last_top_delegator.clone()).into(),
-			collator.clone(),
-		)?;
-	}
-	verify {
+		#[block]
+		{
+			Pallet::<T>::schedule_revoke_delegation(
+				RawOrigin::Signed(last_top_delegator.clone()).into(),
+				collator.clone(),
+			)?;
+		}
+
 		let state = Pallet::<T>::delegator_state(&last_top_delegator)
 			.expect("delegator must exist");
 		let current_round = Pallet::<T>::round().current;
@@ -967,15 +995,14 @@ mod benchmarks {
 				action: DelegationAction::Revoke(last_top_delegator_bond),
 			}),
 		);
+		Ok(())
 	}
 
-	delegator_bond_more {
+	#[benchmark]
+	fn delegator_bond_more(
 		// x controls the number of other scheduled requests
-		let x in 0..(
-			T::MaxTopDelegationsPerCandidate::get()
-			+ T::MaxBottomDelegationsPerCandidate::get() - 1
-		);
-
+		x: Linear<0, { T::MaxTopDelegationsPerCandidate::get() + T::MaxBottomDelegationsPerCandidate::get() - 1 }>,
+	) -> Result<(), BenchmarkError> {
 		let num_top = x.min(T::MaxTopDelegationsPerCandidate::get() - 1);
 		let num_bottom = x.saturating_sub(num_top).min(T::MaxBottomDelegationsPerCandidate::get());
 
@@ -1062,28 +1089,29 @@ mod benchmarks {
 		);
 
 		let bond_more = 1_000u32.into();
-	}: {
-		<Pallet<T>>::delegator_bond_more(
-			RawOrigin::Signed(last_top_delegator.clone()).into(),
-			collator.clone(),
-			bond_more,
-		)?;
-	}
-	verify {
+
+		#[block]
+		{
+			<Pallet<T>>::delegator_bond_more(
+				RawOrigin::Signed(last_top_delegator.clone()).into(),
+				collator.clone(),
+				bond_more,
+			)?;
+		}
+
 		let expected_bond = last_top_delegator_bond + bond_more;
 		assert_eq!(
 			Pallet::<T>::delegator_state(&last_top_delegator).expect("candidate was created, qed").total,
 			expected_bond,
 		);
+		Ok(())
 	}
 
-	schedule_delegator_bond_less {
+	#[benchmark]
+	fn schedule_delegator_bond_less(
 		// x controls the number of other scheduled requests
-		let x in 0..(
-			T::MaxTopDelegationsPerCandidate::get()
-			+ T::MaxBottomDelegationsPerCandidate::get() - 1
-		);
-
+		x: Linear<0, { T::MaxTopDelegationsPerCandidate::get() + T::MaxBottomDelegationsPerCandidate::get() - 1 }>,
+	) -> Result<(), BenchmarkError> {
 		let num_top = x.min(T::MaxTopDelegationsPerCandidate::get() - 1);
 		let num_bottom = x.saturating_sub(num_top).min(T::MaxBottomDelegationsPerCandidate::get());
 
@@ -1168,14 +1196,16 @@ mod benchmarks {
 			num_bottom,
 		);
 		let bond_less = 1_000u32.into();
-	}: {
-		Pallet::<T>::schedule_delegator_bond_less(
-			RawOrigin::Signed(last_top_delegator.clone()).into(),
-			collator.clone(),
-			bond_less,
-		)?;
-	}
-	verify {
+
+		#[block]
+		{
+			Pallet::<T>::schedule_delegator_bond_less(
+				RawOrigin::Signed(last_top_delegator.clone()).into(),
+				collator.clone(),
+				bond_less,
+			)?;
+		}
+
 		let state = Pallet::<T>::delegator_state(&last_top_delegator)
 			.expect("just request bonded less so exists");
 		let current_round = Pallet::<T>::round().current;
@@ -1191,6 +1221,7 @@ mod benchmarks {
 				action: DelegationAction::Decrease(bond_less),
 			}),
 		);
+		Ok(())
 	}
 
 	#[benchmark]
@@ -1234,7 +1265,8 @@ mod benchmarks {
 		Ok(())
 	}
 
-	execute_delegator_revoke_delegation_worst {
+	#[benchmark]
+	fn execute_delegator_revoke_delegation_worst() -> Result<(), BenchmarkError> {
 		// We assume delegator has auto-compound set, collator has max scheduled requests, and delegator
 		// will be kicked from delegator pool, and a bottom delegator will be bumped to top.
 
@@ -1344,13 +1376,14 @@ mod benchmarks {
 				.unwrap_or_default(),
 		);
 		roll_to_and_author::<T>(T::RevokeDelegationDelay::get(), collator.clone());
-	}: {
-		Pallet::<T>::execute_delegation_request(
-			RawOrigin::Signed(last_top_delegator.clone()).into(),
+
+		#[extrinsic_call]
+		execute_delegation_request(
+			RawOrigin::Signed(last_top_delegator.clone()),
 			last_top_delegator.clone(),
 			collator.clone()
-		)?;
-	} verify {
+		);
+
 		assert!(!Pallet::<T>::is_delegator(&last_top_delegator));
 		assert_eq!(
 			<BottomDelegations<T>>::get(&collator)
@@ -1363,9 +1396,11 @@ mod benchmarks {
 				.map(|bd| bd.delegations.iter().any(|d| d.owner == highest_bottom_delegator))
 				.unwrap_or_default(),
 		);
+		Ok(())
 	}
 
-	execute_delegator_bond_less_worst {
+	#[benchmark]
+	fn execute_delegator_bond_less_worst() -> Result<(), BenchmarkError> {
 		// We assume delegator will be kicked into bottom delegation and collator has
 		// max scheduled requests
 		let mut seed = Seed::new();
