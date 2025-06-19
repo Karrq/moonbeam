@@ -23,7 +23,7 @@ use crate::{
 	InflationDistributionConfig, InflationDistributionInfo, Pallet, Points, Range, RewardPayment,
 	Round, ScheduledRequest, TopDelegations,
 };
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, v2::*, impl_benchmark_test_suite};
 use frame_support::traits::{Currency, Get, OnFinalize, OnInitialize};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use sp_runtime::{traits::Zero, Perbill, Percent};
@@ -254,56 +254,75 @@ impl<T: Config> DecreasingBalance<T> {
 	}
 }
 
-benchmarks! {
+#[benchmarks]
+mod benchmarks {
+	use super::*;
+
 	// MONETARY ORIGIN DISPATCHABLES
-	set_staking_expectations {
+	#[benchmark]
+	fn set_staking_expectations() -> Result<(), BenchmarkError> {
 		let stake_range: Range<BalanceOf<T>> = Range {
 			min: 100u32.into(),
 			ideal: 200u32.into(),
 			max: 300u32.into(),
 		};
-	}: _(RawOrigin::Root, stake_range)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Root, stake_range);
+
 		assert_eq!(Pallet::<T>::inflation_config().expect, stake_range);
+		Ok(())
 	}
 
-	set_inflation {
+	#[benchmark]
+	fn set_inflation() -> Result<(), BenchmarkError> {
 		let inflation_range: Range<Perbill> = Range {
 			min: Perbill::from_perthousand(1),
 			ideal: Perbill::from_perthousand(2),
 			max: Perbill::from_perthousand(3),
 		};
 
-	}: _(RawOrigin::Root, inflation_range)
-	verify {
+		#[extrinsic_call]
+		_(RawOrigin::Root, inflation_range);
+
 		assert_eq!(Pallet::<T>::inflation_config().annual, inflation_range);
+		Ok(())
 	}
 
-	set_parachain_bond_account {
+	#[benchmark]
+	fn set_parachain_bond_account() -> Result<(), BenchmarkError> {
 		let parachain_bond_account: T::AccountId = account("TEST", 0u32, USER_SEED);
-	}: _(RawOrigin::Root, parachain_bond_account.clone())
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Root, parachain_bond_account.clone());
+
 		assert_eq!(Pallet::<T>::inflation_distribution_info().0[0].account, parachain_bond_account);
+		Ok(())
 	}
 
-	set_parachain_bond_reserve_percent {
-	}: _(RawOrigin::Root, Percent::from_percent(33))
-	verify {
+	#[benchmark]
+	fn set_parachain_bond_reserve_percent() -> Result<(), BenchmarkError> {
+		#[extrinsic_call]
+		_(RawOrigin::Root, Percent::from_percent(33));
+
 		assert_eq!(Pallet::<T>::inflation_distribution_info().0[0].percent, Percent::from_percent(33));
+		Ok(())
 	}
 
-	set_inflation_distribution_config {
-	}: _(RawOrigin::Root, [
-		InflationDistributionAccount {
-			account: account("TEST1", 0u32, USER_SEED),
-			percent: Percent::from_percent(33),
-		},
-		InflationDistributionAccount {
-			account: account("TEST2", 1u32, USER_SEED),
-			percent: Percent::from_percent(22),
-		},
-	].into())
-	verify {
+	#[benchmark]
+	fn set_inflation_distribution_config() -> Result<(), BenchmarkError> {
+		#[extrinsic_call]
+		_(RawOrigin::Root, [
+			InflationDistributionAccount {
+				account: account("TEST1", 0u32, USER_SEED),
+				percent: Percent::from_percent(33),
+			},
+			InflationDistributionAccount {
+				account: account("TEST2", 1u32, USER_SEED),
+				percent: Percent::from_percent(22),
+			},
+		].into());
+
 		assert_eq!(
 			Pallet::<T>::inflation_distribution_info().0[0].account,
 			 account("TEST1", 0u32, USER_SEED)
@@ -320,31 +339,44 @@ benchmarks! {
 			Pallet::<T>::inflation_distribution_info().0[1].percent,
 			 Percent::from_percent(22)
 		);
+		Ok(())
 	}
 
 	// ROOT DISPATCHABLES
 
-	set_total_selected {
+	#[benchmark]
+	fn set_total_selected() -> Result<(), BenchmarkError> {
 		Pallet::<T>::set_blocks_per_round(RawOrigin::Root.into(), 101u32)?;
-	}: _(RawOrigin::Root, 100u32)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Root, 100u32);
+
 		assert_eq!(Pallet::<T>::total_selected(), 100u32);
+		Ok(())
 	}
 
-	set_collator_commission {}: _(RawOrigin::Root, Perbill::from_percent(33))
-	verify {
+	#[benchmark]
+	fn set_collator_commission() -> Result<(), BenchmarkError> {
+		#[extrinsic_call]
+		_(RawOrigin::Root, Perbill::from_percent(33));
+
 		assert_eq!(Pallet::<T>::collator_commission(), Perbill::from_percent(33));
+		Ok(())
 	}
 
-	set_blocks_per_round {}: _(RawOrigin::Root, 600u32)
-	verify {
+	#[benchmark]
+	fn set_blocks_per_round() -> Result<(), BenchmarkError> {
+		#[extrinsic_call]
+		_(RawOrigin::Root, 600u32);
+
 		assert_eq!(Pallet::<T>::round().length, 600u32);
+		Ok(())
 	}
 
 	// USER DISPATCHABLES
 
-	join_candidates {
-		let x in 3..T::MaxCandidates::get();
+	#[benchmark]
+	fn join_candidates(x: Linear<3, { T::MaxCandidates::get() }>) -> Result<(), BenchmarkError> {
 		// Worst Case Complexity is insertion into an ordered list so \exists full list before call
 		let mut candidate_count = 1u32;
 		for i in 2..x {
@@ -359,15 +391,18 @@ benchmarks! {
 			candidate_count += 1u32;
 		}
 		let (caller, min_candidate_stk) = create_funded_user::<T>("caller", USER_SEED, 0u32.into());
-	}: _(RawOrigin::Signed(caller.clone()), min_candidate_stk, candidate_count)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), min_candidate_stk, candidate_count);
+
 		assert!(Pallet::<T>::is_candidate(&caller));
+		Ok(())
 	}
 
 	// This call schedules the collator's exit and removes them from the candidate pool
 	// -> it retains the self-bond and delegator bonds
-	schedule_leave_candidates {
-		let x in 3..T::MaxCandidates::get();
+	#[benchmark]
+	fn schedule_leave_candidates(x: Linear<3, { T::MaxCandidates::get() }>) -> Result<(), BenchmarkError> {
 		// Worst Case Complexity is removal from an ordered list so \exists full list before call
 		let mut candidate_count = 1u32;
 		for i in 2..x {
@@ -389,9 +424,12 @@ benchmarks! {
 			candidate_count,
 		)?;
 		candidate_count += 1u32;
-	}: _(RawOrigin::Signed(caller.clone()), candidate_count)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), candidate_count);
+
 		assert!(Pallet::<T>::candidate_info(&caller).expect("must exist").is_leaving());
+		Ok(())
 	}
 
 	execute_leave_candidates_worst_case {
@@ -554,8 +592,8 @@ benchmarks! {
 		}
 	}
 
-	cancel_leave_candidates {
-		let x in 3..T::MaxCandidates::get();
+	#[benchmark]
+	fn cancel_leave_candidates(x: Linear<3, { T::MaxCandidates::get() }>) -> Result<(), BenchmarkError> {
 		// Worst Case Complexity is removal from an ordered list so \exists full list before call
 		let mut candidate_count = 1u32;
 		for i in 2..x {
@@ -582,9 +620,12 @@ benchmarks! {
 			candidate_count
 		)?;
 		candidate_count -= 1u32;
-	}: _(RawOrigin::Signed(caller.clone()), candidate_count)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), candidate_count);
+
 		assert!(Pallet::<T>::candidate_info(&caller).expect("must exist").is_active());
+		Ok(())
 	}
 
 	go_offline {
@@ -684,7 +725,8 @@ benchmarks! {
 		);
 	}
 
-	schedule_candidate_bond_less {
+	#[benchmark]
+	fn schedule_candidate_bond_less() -> Result<(), BenchmarkError> {
 		let min_candidate_stk = min_candidate_stk::<T>();
 		let caller: T::AccountId = create_funded_collator::<T>(
 			"collator",
@@ -693,8 +735,10 @@ benchmarks! {
 			false,
 			1u32,
 		)?;
-	}: _(RawOrigin::Signed(caller.clone()), min_candidate_stk)
-	verify {
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), min_candidate_stk);
+
 		let state = Pallet::<T>::candidate_info(&caller).expect("request bonded less so exists");
 		assert_eq!(
 			state.request,
@@ -703,6 +747,7 @@ benchmarks! {
 				when_executable: T::CandidateBondLessDelay::get() + 1,
 			})
 		);
+		Ok(())
 	}
 
 	execute_candidate_bond_less {
@@ -2224,7 +2269,8 @@ benchmarks! {
 		assert_eq!(T::Currency::free_balance(&collator), original_free_balance + 50u32.into());
 	}
 
-	notify_inactive_collator {
+	#[benchmark]
+	fn notify_inactive_collator() -> Result<(), BenchmarkError> {
 		use crate::{WasInactive};
 
 		// Blocks per-round must be greater than TotalSelected
@@ -2281,9 +2327,11 @@ benchmarks! {
 		// Enable killswitch
 		<EnableMarkingOffline<T>>::set(true);
 
-	}: _(RawOrigin::Signed(caller), inactive_collator.clone())
-	verify {
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller), inactive_collator.clone());
+
 		assert!(!Pallet::<T>::candidate_info(&inactive_collator).expect("must exist").is_active());
+		Ok(())
 	}
 
 	mark_collators_as_inactive {
