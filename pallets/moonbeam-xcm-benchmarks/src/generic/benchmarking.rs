@@ -53,36 +53,64 @@ mod benchmarks {
 
 	#[benchmark]
 	fn exchange_asset() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	#[benchmark]
 	fn export_message() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	#[benchmark]
 	fn lock_asset() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	#[benchmark]
 	fn unlock_asset() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	#[benchmark]
 	fn note_unlockable() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	#[benchmark]
 	fn request_unlock() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	#[benchmark]
 	fn universal_origin() -> Result<(), BenchmarkError> {
+		#[block]
+		{
+			// No-op implementation - just return the override
+		}
 		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 

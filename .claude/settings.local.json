@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(sed:*)",
+      "Bash(rm:*)",
+      "Bash(cargo check:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)"
+    ],
+    "deny": []
+  }
+}
