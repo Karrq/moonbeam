@@ -15,15 +15,19 @@
 // along with Moonbeam.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::*;
-use frame_benchmarking::{benchmarks, BenchmarkError, BenchmarkResult};
+use frame_benchmarking::{v2::*, BenchmarkError, BenchmarkResult};
 use frame_support::{traits::TrackedStorageKey, weights::Weight};
 use pallet_xcm_benchmarks::{new_executor, XcmCallOf};
 use sp_std::vec;
 use sp_std::vec::Vec;
 use xcm::latest::prelude::*;
 
-benchmarks! {
-	buy_execution {
+#[benchmarks]
+mod benchmarks {
+	use super::*;
+
+	#[benchmark]
+	fn buy_execution() -> Result<(), BenchmarkError> {
 		// TODO setting it to zero by now
 		let holding = T::worst_case_holding(0).into();
 
@@ -39,43 +43,47 @@ benchmarks! {
 
 		let xcm = Xcm(vec![instruction]);
 
-	} : {
-		executor.bench_process(xcm)?;
+		#[block]
+		{
+			executor.bench_process(xcm)?;
+		}
+
+		Ok(())
 	}
 
-	exchange_asset {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn exchange_asset() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
-	export_message {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn export_message() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
-	lock_asset {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn lock_asset() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
-	unlock_asset {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn unlock_asset() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
-	note_unlockable {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn note_unlockable() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
-	request_unlock {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn request_unlock() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
-	universal_origin {
-	} : {
-		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))?;
+	#[benchmark]
+	fn universal_origin() -> Result<(), BenchmarkError> {
+		Err(BenchmarkError::Override(BenchmarkResult::from_weight(Weight::MAX)))
 	}
 
 	impl_benchmark_test_suite!(
@@ -83,7 +91,6 @@ benchmarks! {
 		crate::generic::mock::new_test_ext(),
 		crate::generic::mock::Test
 	);
-
 }
 
 pub struct XcmGenericBenchmarks<T>(sp_std::marker::PhantomData<T>);
